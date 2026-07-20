@@ -52,16 +52,16 @@ static void bcm2711_i2c_update_interrupt(BCM2711I2CState *s)
 
 static void bcm2711_i2c_begin_transfer(BCM2711I2CState *s)
 {
-    int direction = s->c & BCM2835_I2C_C_READ;
+    int direction = s->c & BCM2711_I2C_C_READ;
     if (i2c_start_transfer(s->bus, s->a, direction)) {
-        s->s |= BCM2835_I2C_S_ERR;
+        s->s |= BCM2711_I2C_S_ERR;
     }
-    s->s |= BCM2835_I2C_S_TA;
+    s->s |= BCM2711_I2C_S_TA;
 
     if (direction) {
-        s->s |= BCM2835_I2C_S_RXR | BCM2835_I2C_S_RXD;
+        s->s |= BCM2711_I2C_S_RXR | BCM2711_I2C_S_RXD;
     } else {
-        s->s |= BCM2835_I2C_S_TXW;
+        s->s |= BCM2711_I2C_S_TXW;
     }
 }
 
@@ -70,7 +70,7 @@ static void bcm2711_i2c_finish_transfer(BCM2711I2CState *s)
     /*
      * STOP is sent when DLEN counts down to zero.
      *
-     * https://github.com/torvalds/linux/blob/v6.7/drivers/i2c/busses/i2c-bcm2835.c#L223-L261
+     * https://github.com/torvalds/linux/blob/v6.7/drivers/i2c/busses/i2c-BCM2711.c#L223-L261
      * It is possible to initiate repeated starts on real hardware.
      * However, this requires sending another ST request before the bytes in
      * TX FIFO are shifted out.
@@ -81,47 +81,47 @@ static void bcm2711_i2c_finish_transfer(BCM2711I2CState *s)
     s->s |= BCM2711_I2C_S_DONE;
 
     /* Ensure RXD is cleared, otherwise the driver registers an error */
-    s->s &= ~(BCM2835_I2C_S_TA | BCM2835_I2C_S_RXR |
-              BCM2835_I2C_S_TXW | BCM2835_I2C_S_RXD);
+    s->s &= ~(BCM2711_I2C_S_TA | BCM2711_I2C_S_RXR |
+              BCM2711_I2C_S_TXW | BCM2711_I2C_S_RXD);
 }
 
-static uint64_t bcm2835_i2c_read(void *opaque, hwaddr addr, unsigned size)
+static uint64_t BCM2711_i2c_read(void *opaque, hwaddr addr, unsigned size)
 {
-    BCM2835I2CState *s = opaque;
+    BCM2711I2CState *s = opaque;
     uint32_t readval = 0;
 
     switch (addr) {
-    case BCM2835_I2C_C:
+    case BCM2711_I2C_C:
         readval = s->c;
         break;
-    case BCM2835_I2C_S:
+    case BCM2711_I2C_S:
         readval = s->s;
         break;
-    case BCM2835_I2C_DLEN:
+    case BCM2711_I2C_DLEN:
         readval = s->dlen;
         break;
-    case BCM2835_I2C_A:
+    case BCM2711_I2C_A:
         readval = s->a;
         break;
-    case BCM2835_I2C_FIFO:
+    case BCM2711_I2C_FIFO:
         /* We receive I2C messages directly instead of using FIFOs */
-        if (s->s & BCM2835_I2C_S_TA) {
+        if (s->s & BCM2711_I2C_S_TA) {
             readval = i2c_recv(s->bus);
             s->dlen -= 1;
 
             if (s->dlen == 0) {
-                bcm2835_i2c_finish_transfer(s);
+                BCM2711_i2c_finish_transfer(s);
             }
         }
-        bcm2835_i2c_update_interrupt(s);
+        BCM2711_i2c_update_interrupt(s);
         break;
-    case BCM2835_I2C_DIV:
+    case BCM2711_I2C_DIV:
         readval = s->div;
         break;
-    case BCM2835_I2C_DEL:
+    case BCM2711_I2C_DEL:
         readval = s->del;
         break;
-    case BCM2835_I2C_CLKT:
+    case BCM2711_I2C_CLKT:
         readval = s->clkt;
         break;
     default:
@@ -132,72 +132,72 @@ static uint64_t bcm2835_i2c_read(void *opaque, hwaddr addr, unsigned size)
     return readval;
 }
 
-static void bcm2835_i2c_write(void *opaque, hwaddr addr,
+static void BCM2711_i2c_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned int size)
 {
-    BCM2835I2CState *s = opaque;
+    BCM2711I2CState *s = opaque;
     uint32_t writeval = value;
 
     switch (addr) {
-    case BCM2835_I2C_C:
+    case BCM2711_I2C_C:
         /* ST is a one-shot operation; it must read back as 0 */
-        s->c = writeval & ~BCM2835_I2C_C_ST;
+        s->c = writeval & ~BCM2711_I2C_C_ST;
 
         /* Start transfer */
-        if (writeval & (BCM2835_I2C_C_ST | BCM2835_I2C_C_I2CEN)) {
-            bcm2835_i2c_begin_transfer(s);
+        if (writeval & (BCM2711_I2C_C_ST | BCM2711_I2C_C_I2CEN)) {
+            BCM2711_i2c_begin_transfer(s);
             /*
              * Handle special case where transfer starts with zero data length.
              * Required for zero length i2c quick messages to work.
              */
             if (s->dlen == 0) {
-                bcm2835_i2c_finish_transfer(s);
+                BCM2711_i2c_finish_transfer(s);
             }
         }
 
-        bcm2835_i2c_update_interrupt(s);
+        BCM2711_i2c_update_interrupt(s);
         break;
-    case BCM2835_I2C_S:
-        if (writeval & BCM2835_I2C_S_DONE && s->s & BCM2835_I2C_S_DONE) {
+    case BCM2711_I2C_S:
+        if (writeval & BCM2711_I2C_S_DONE && s->s & BCM2711_I2C_S_DONE) {
             /* When DONE is cleared, DLEN should read last written value. */
             s->dlen = s->last_dlen;
         }
 
         /* Clear DONE, CLKT and ERR by writing 1 */
-        s->s &= ~(writeval & (BCM2835_I2C_S_DONE |
-                  BCM2835_I2C_S_ERR | BCM2835_I2C_S_CLKT));
+        s->s &= ~(writeval & (BCM2711_I2C_S_DONE |
+                  BCM2711_I2C_S_ERR | BCM2711_I2C_S_CLKT));
         break;
-    case BCM2835_I2C_DLEN:
+    case BCM2711_I2C_DLEN:
         s->dlen = writeval;
         s->last_dlen = writeval;
         break;
-    case BCM2835_I2C_A:
+    case BCM2711_I2C_A:
         s->a = writeval;
         break;
-    case BCM2835_I2C_FIFO:
+    case BCM2711_I2C_FIFO:
         /* We send I2C messages directly instead of using FIFOs */
-        if (s->s & BCM2835_I2C_S_TA) {
-            if (s->s & BCM2835_I2C_S_TXD) {
+        if (s->s & BCM2711_I2C_S_TA) {
+            if (s->s & BCM2711_I2C_S_TXD) {
                 if (!i2c_send(s->bus, writeval & 0xff)) {
                     s->dlen -= 1;
                 } else {
-                    s->s |= BCM2835_I2C_S_ERR;
+                    s->s |= BCM2711_I2C_S_ERR;
                 }
             }
 
             if (s->dlen == 0) {
-                bcm2835_i2c_finish_transfer(s);
+                BCM2711_i2c_finish_transfer(s);
             }
         }
-        bcm2835_i2c_update_interrupt(s);
+        BCM2711_i2c_update_interrupt(s);
         break;
-    case BCM2835_I2C_DIV:
+    case BCM2711_I2C_DIV:
         s->div = writeval;
         break;
-    case BCM2835_I2C_DEL:
+    case BCM2711_I2C_DEL:
         s->del = writeval;
         break;
-    case BCM2835_I2C_CLKT:
+    case BCM2711_I2C_CLKT:
         s->clkt = writeval;
         break;
     default:
@@ -206,9 +206,9 @@ static void bcm2835_i2c_write(void *opaque, hwaddr addr,
     }
 }
 
-static const MemoryRegionOps bcm2835_i2c_ops = {
-    .read = bcm2835_i2c_read,
-    .write = bcm2835_i2c_write,
+static const MemoryRegionOps BCM2711_i2c_ops = {
+    .read = BCM2711_i2c_read,
+    .write = BCM2711_i2c_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 4,
@@ -216,24 +216,24 @@ static const MemoryRegionOps bcm2835_i2c_ops = {
     },
 };
 
-static void bcm2835_i2c_realize(DeviceState *dev, Error **errp)
+static void BCM2711_i2c_realize(DeviceState *dev, Error **errp)
 {
-    BCM2835I2CState *s = BCM2835_I2C(dev);
+    BCM2711I2CState *s = BCM2711_I2C(dev);
     s->bus = i2c_init_bus(dev, NULL);
 
-    memory_region_init_io(&s->iomem, OBJECT(dev), &bcm2835_i2c_ops, s,
-                          TYPE_BCM2835_I2C, 0x24);
+    memory_region_init_io(&s->iomem, OBJECT(dev), &BCM2711_i2c_ops, s,
+                          TYPE_BCM2711_I2C, 0x24);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
     sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
 }
 
-static void bcm2835_i2c_reset(DeviceState *dev)
+static void BCM2711_i2c_reset(DeviceState *dev)
 {
-    BCM2835I2CState *s = BCM2835_I2C(dev);
+    BCM2711I2CState *s = BCM2711_I2C(dev);
 
-    /* Reset values according to BCM2835 Peripheral Documentation */
+    /* Reset values according to BCM2711 Peripheral Documentation */
     s->c = 0x0;
-    s->s = BCM2835_I2C_S_TXD | BCM2835_I2C_S_TXE;
+    s->s = BCM2711_I2C_S_TXD | BCM2711_I2C_S_TXE;
     s->dlen = 0x0;
     s->a = 0x0;
     s->div = 0x5dc;
@@ -241,42 +241,42 @@ static void bcm2835_i2c_reset(DeviceState *dev)
     s->clkt = 0x40;
 }
 
-static const VMStateDescription vmstate_bcm2835_i2c = {
-    .name = TYPE_BCM2835_I2C,
+static const VMStateDescription vmstate_BCM2711_i2c = {
+    .name = TYPE_BCM2711_I2C,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (const VMStateField[]) {
-        VMSTATE_UINT32(c, BCM2835I2CState),
-        VMSTATE_UINT32(s, BCM2835I2CState),
-        VMSTATE_UINT32(dlen, BCM2835I2CState),
-        VMSTATE_UINT32(a, BCM2835I2CState),
-        VMSTATE_UINT32(div, BCM2835I2CState),
-        VMSTATE_UINT32(del, BCM2835I2CState),
-        VMSTATE_UINT32(clkt, BCM2835I2CState),
-        VMSTATE_UINT32(last_dlen, BCM2835I2CState),
+        VMSTATE_UINT32(c, BCM2711I2CState),
+        VMSTATE_UINT32(s, BCM2711I2CState),
+        VMSTATE_UINT32(dlen, BCM2711I2CState),
+        VMSTATE_UINT32(a, BCM2711I2CState),
+        VMSTATE_UINT32(div, BCM2711I2CState),
+        VMSTATE_UINT32(del, BCM2711I2CState),
+        VMSTATE_UINT32(clkt, BCM2711I2CState),
+        VMSTATE_UINT32(last_dlen, BCM2711I2CState),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void bcm2835_i2c_class_init(ObjectClass *klass, const void *data)
+static void BCM2711_i2c_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    device_class_set_legacy_reset(dc, bcm2835_i2c_reset);
-    dc->realize = bcm2835_i2c_realize;
-    dc->vmsd = &vmstate_bcm2835_i2c;
+    device_class_set_legacy_reset(dc, BCM2711_i2c_reset);
+    dc->realize = BCM2711_i2c_realize;
+    dc->vmsd = &vmstate_BCM2711_i2c;
 }
 
-static const TypeInfo bcm2835_i2c_info = {
-    .name = TYPE_BCM2835_I2C,
+static const TypeInfo BCM2711_i2c_info = {
+    .name = TYPE_BCM2711_I2C,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(BCM2835I2CState),
-    .class_init = bcm2835_i2c_class_init,
+    .instance_size = sizeof(BCM2711I2CState),
+    .class_init = BCM2711_i2c_class_init,
 };
 
-static void bcm2835_i2c_register_types(void)
+static void BCM2711_i2c_register_types(void)
 {
-    type_register_static(&bcm2835_i2c_info);
+    type_register_static(&BCM2711_i2c_info);
 }
 
-type_init(bcm2835_i2c_register_types)
+type_init(BCM2711_i2c_register_types)
