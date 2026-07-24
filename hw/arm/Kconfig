@@ -361,6 +361,7 @@ config RASPI
     bool
     default y
     depends on TCG && ARM
+    select ARM_GIC
     select FRAMEBUFFER
     select PL011 # UART
     select SDHCI

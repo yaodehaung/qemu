@@ -1018,6 +1018,7 @@ R: Philippe Mathieu-Daudé <philmd@mailo.com>
 L: qemu-arm@nongnu.org
 S: Odd Fixes
 F: hw/arm/raspi*.c
+F: hw/*/bcm2712*
 F: hw/*/bcm283*
 F: hw/i2c/bcm2711_i2c.c
 F: hw/i2c/bcm2835_i2c.c
