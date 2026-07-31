@@ -1,0 +1,35 @@
+.text 0x10000
+# Unknown generic syscall must return -ENOSYS.
+addi a7, zero, 2047
+ecall
+addi t0, zero, -38
+bne a0, t0, fail
+
+# clone(CLONE_VM, ...) is outside Q32 v1's single-thread contract.
+addi a0, zero, 0x100
+addi a1, zero, 0
+addi a2, zero, 0
+addi a3, zero, 0
+addi a4, zero, 0
+addi a7, zero, 220
+ecall
+addi t0, zero, -22
+bne a0, t0, fail
+
+# CLONE_SETTLS is rejected even for a process-style clone.
+lui a0, 0x80
+addi a1, zero, 0
+addi a2, zero, 0
+addi a3, zero, 0
+addi a4, zero, 0
+addi a7, zero, 220
+ecall
+addi t0, zero, -22
+bne a0, t0, fail
+
+addi a0, zero, 0
+jal zero, exit
+fail: addi a0, zero, 98
+exit: addi a7, zero, 93
+ecall
+.expect exit 0

@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
+#ifndef Q32_TARGET_SYSCALL_H
+#define Q32_TARGET_SYSCALL_H
+#define UNAME_MACHINE "q32"
+#define UNAME_MINIMUM_RELEASE "6.0.0"
+#define TARGET_MLOCKALL_MCL_CURRENT 1
+#define TARGET_MLOCKALL_MCL_FUTURE 2
+#define TARGET_MCL_CURRENT 1
+#define TARGET_MCL_FUTURE 2
+#define TARGET_MCL_ONFAULT 4
+#endif

@@ -1,0 +1,66 @@
+.text 0x10000
+# r0 writes are discarded.
+addi zero, zero, 1
+bne zero, r0, fail
+
+# Register shifts mask the count to five bits.
+addi t0, zero, 1
+addi t1, zero, 32
+sll t2, t0, t1
+bne t2, t0, fail
+addi t1, zero, 33
+sll t2, t0, t1
+addi t3, zero, 2
+bne t2, t3, fail
+addi t2, zero, -1
+srl t3, t2, t0
+lui t4, 0x80000
+addi t4, t4, -1
+bne t3, t4, fail
+sra t3, t2, t0
+bne t3, t2, fail
+
+# Signed and unsigned comparisons differ at the sign bit.
+slt t3, t2, zero
+addi t4, zero, 1
+bne t3, t4, fail
+sltu t3, t2, zero
+bne t3, zero, fail
+
+# Store truncation, little endian, and signed/unsigned loads.
+lui t0, 0x20
+addi t1, zero, -1
+sb t1, 0(t0)
+sh t1, 2(t0)
+sw t1, 4(t0)
+lb t2, 0(t0)
+bne t2, t1, fail
+lbu t2, 0(t0)
+addi t3, zero, 255
+bne t2, t3, fail
+lh t2, 2(t0)
+bne t2, t1, fail
+lhu t2, 2(t0)
+lui t3, 0x10
+addi t3, t3, -1
+bne t2, t3, fail
+lw t2, 4(t0)
+bne t2, t1, fail
+
+# Exercise all remaining conditional branch predicates.
+addi t0, zero, -1
+addi t1, zero, 1
+bge t0, t1, fail
+blt t1, t0, fail
+bltu t0, t1, fail
+bgeu t1, t0, fail
+
+addi a0, zero, 0
+jal zero, exit
+fail: addi a0, zero, 95
+exit: addi a7, zero, 93
+ecall
+
+.data 0x20000
+.word 0, 0
+.expect exit 0

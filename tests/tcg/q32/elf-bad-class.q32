@@ -1,0 +1,4 @@
+.text 0x10000
+nop
+.mutate class 2
+.expect exit 0

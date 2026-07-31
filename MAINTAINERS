@@ -329,6 +329,13 @@ F: include/hw/or1k/
 F: tests/functional/or1k/meson.build
 F: tests/tcg/or1k/
 
+Q32 TCG CPU
+S: Orphan
+F: configs/targets/q32-linux-user.mak
+F: linux-user/q32/
+F: target/q32/
+F: tests/tcg/q32/
+
 PowerPC TCG CPUs
 M: Nicholas Piggin <npiggin@gmail.com>
 R: Chinmay Rath <rathc@linux.ibm.com>

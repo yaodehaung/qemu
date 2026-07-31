@@ -1,0 +1,8 @@
+.text 0x10000
+addi a0, zero, 0
+addi a7, zero, 93
+ecall
+.data 0x20000
+.word 0
+.mutate phdr2-vaddr 0x10000
+.expect exit 0

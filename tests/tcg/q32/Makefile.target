@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Q32 has no external compiler: sources are assembled by q32-artifact.py.
+
+VPATH += $(SRC_PATH)/tests/tcg/q32
+
+Q32_TESTS = smoke isa-memory self-modifying illegal align syscall-abi signal-return
+Q32_TESTS += elf-bad-class elf-bad-machine elf-bad-flags elf-bad-type elf-bad-entry
+Q32_TESTS += unmapped readonly-store bss elf-nonexec-entry
+Q32_TESTS += elf-filesz-overflow elf-bad-congruence elf-address-wrap
+Q32_TESTS += elf-overlap
+TESTS += $(Q32_TESTS:%=%.elf)
+CLEANFILES += $(Q32_TESTS:%=%.elf)
+
+%.elf: %.q32 $(SRC_PATH)/tests/tcg/q32/q32-artifact.py
+	$(PYTHON) $(SRC_PATH)/tests/tcg/q32/q32-artifact.py $< -o $@
+
+define Q32_RUN_TEST
+run-$(1).elf: $(1).elf
+	$$(call quiet-command,$$(PYTHON) $$(SRC_PATH)/tests/tcg/q32/q32-runner.py \
+		$$(QEMU) $$(SRC_PATH)/tests/tcg/q32/$(1).q32 $(1).elf,TEST,$(1) on Q32)
+endef
+
+$(foreach test,$(Q32_TESTS),$(eval $(call Q32_RUN_TEST,$(test))))

@@ -1,0 +1,9 @@
+.text 0x10000
+lui t0, 0x20
+lw a0, 4(t0)
+addi a7, zero, 93
+ecall
+.data 0x20000
+.word 0x12345678
+.bss 4
+.expect exit 0

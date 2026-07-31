@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+TARGET_ARCH=q32
+TARGET_LONG_BITS=32
+TARGET_SYSTBL=../riscv/syscall.tbl
+TARGET_SYSTBL_ABI=common,32,memfd_secret
+TARGET_NOT_USING_LEGACY_NATIVE_ENDIAN_API=y

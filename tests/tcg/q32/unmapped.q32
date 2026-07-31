@@ -1,0 +1,3 @@
+.text 0x10000
+lw zero, 0(zero)
+.expect signal SIGSEGV

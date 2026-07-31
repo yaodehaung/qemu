@@ -1,0 +1,38 @@
+.text 0x10000
+# rt_sigaction(SIGUSR1, &action, NULL, 8)
+addi a0, zero, 10
+lui a1, 0x20
+addi a2, zero, 0
+addi a3, zero, 8
+addi a7, zero, 134
+ecall
+bne a0, zero, fail
+
+# kill(getpid(), SIGUSR1); handler returns through Q32 trampoline.
+addi a7, zero, 172
+ecall
+addi a1, zero, 10
+addi a7, zero, 129
+ecall
+bne a0, zero, fail
+
+addi a0, zero, 0
+jal zero, exit
+
+handler:
+addi t0, zero, 10
+bne a0, t0, handler_fail
+beq a1, zero, handler_fail
+beq a2, zero, handler_fail
+jalr zero, 0(ra)
+handler_fail: addi a0, zero, 97
+jal zero, exit
+
+fail: addi a0, zero, 96
+exit: addi a7, zero, 93
+ecall
+
+.data 0x20000
+# handler, SA_SIGINFO, 64-bit empty mask
+.word handler, 4, 0, 0
+.expect exit 0

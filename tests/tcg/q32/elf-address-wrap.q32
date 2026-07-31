@@ -1,0 +1,7 @@
+.text 0x10000
+addi a0, zero, 0
+addi a7, zero, 93
+ecall
+.mutate phdr-vaddr 0xfffff000
+.mutate phdr-memsz 0x2000
+.expect exit 0

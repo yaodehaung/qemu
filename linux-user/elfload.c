@@ -128,6 +128,22 @@ typedef abi_int         target_pid_t;
 #define elf_check_abi(x) (1)
 #endif
 
+#ifndef elf_check_type
+#define elf_check_type(x) ((x) == ET_EXEC || (x) == ET_DYN)
+#endif
+
+#ifndef elf_check_entry
+#define elf_check_entry(x) true
+#endif
+
+#ifndef elf_check_entry_segment
+#define elf_check_entry_segment(entry, phdr) true
+#endif
+
+#ifndef elf_check_load_segment
+#define elf_check_load_segment(phdr) true
+#endif
+
 #ifndef STACK_GROWS_DOWN
 #define STACK_GROWS_DOWN 1
 #endif
@@ -298,7 +314,8 @@ static bool elf_check_ehdr(struct elfhdr *ehdr)
             && elf_check_abi(ehdr->e_flags)
             && ehdr->e_ehsize == sizeof(struct elfhdr)
             && ehdr->e_phentsize == sizeof(struct elf_phdr)
-            && (ehdr->e_type == ET_EXEC || ehdr->e_type == ET_DYN));
+            && elf_check_entry(ehdr->e_entry)
+            && elf_check_type(ehdr->e_type));
 }
 
 /*
@@ -1308,6 +1325,35 @@ static void load_elf_image(const char *image_name, const ImageSource *src,
         goto exit_errmsg;
     }
     bswap_phdr(phdr, ehdr->e_phnum);
+    bool entry_segment_ok = false;
+    for (i = 0; i < ehdr->e_phnum; i++) {
+        if (!elf_check_load_segment(&phdr[i])) {
+            error_setg(&err, "Invalid ELF load segment for this architecture");
+            goto exit_errmsg;
+        }
+        entry_segment_ok |= elf_check_entry_segment(ehdr->e_entry, &phdr[i]);
+    }
+#ifdef ELF_REJECT_OVERLAPPING_LOAD_SEGMENTS
+    for (i = 0; i < ehdr->e_phnum; i++) {
+        int j;
+
+        if (phdr[i].p_type != PT_LOAD || phdr[i].p_memsz == 0) {
+            continue;
+        }
+        for (j = i + 1; j < ehdr->e_phnum; j++) {
+            if (phdr[j].p_type == PT_LOAD && phdr[j].p_memsz != 0 &&
+                phdr[i].p_vaddr < phdr[j].p_vaddr + phdr[j].p_memsz &&
+                phdr[j].p_vaddr < phdr[i].p_vaddr + phdr[i].p_memsz) {
+                error_setg(&err, "Overlapping ELF load segments");
+                goto exit_errmsg;
+            }
+        }
+    }
+#endif
+    if (!entry_segment_ok) {
+        error_setg(&err, "Invalid ELF program headers for this architecture");
+        goto exit_errmsg;
+    }
 
     info->nsegs = 0;
     info->pt_dynamic_addr = 0;

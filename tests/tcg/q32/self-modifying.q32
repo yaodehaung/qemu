@@ -1,0 +1,14 @@
+.text 0x10000 rwx
+# Replace the already translated patch instruction with "addi a0,zero,42".
+lui t0, 0x10
+addi t0, t0, 0x100
+lui t1, 0x02a00
+addi t1, t1, 0x52b
+sw t1, 0(t0)
+jal zero, patch
+
+.align 256
+patch: addi a0, zero, 99
+addi a7, zero, 93
+ecall
+.expect exit 42

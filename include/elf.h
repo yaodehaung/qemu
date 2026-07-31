@@ -183,6 +183,7 @@ typedef struct mips_elf_abiflags_v0 {
 #define EM_OPENRISC         92  /* OpenCores OpenRISC */
 
 #define EM_HEXAGON          164 /* Qualcomm Hexagon */
+#define EM_Q32              0xff32 /* Experimental Q32 */
 
 #define EM_RX               173 /* Renesas RX family */
 

@@ -1,0 +1,4 @@
+.text 0x10000
+nop
+.mutate flags 1
+.expect exit 0

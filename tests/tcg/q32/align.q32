@@ -1,0 +1,7 @@
+.text 0x10000
+lui t0, 0x20
+lw zero, 1(t0)
+.expect signal SIGBUS
+
+.data 0x20000
+.word 0

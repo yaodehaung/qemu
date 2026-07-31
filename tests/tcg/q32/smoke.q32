@@ -1,0 +1,34 @@
+.text 0x10000
+lui t0, 0x20
+lw t1, 0(t0)
+lb t2, 0(t0)
+lbu s0, 1(t0)
+lh s1, 0(t0)
+lhu a3, 0(t0)
+add a4, t2, s0
+sub a4, a4, t2
+slli a4, a4, 1
+srli a4, a4, 1
+srai a4, a4, 1
+slti a5, a4, 100
+sltiu a6, a4, -1
+xori a4, a4, 1
+ori a4, a4, 2
+andi a4, a4, 0x7ff
+bne a5, a6, fail
+addi a0, zero, 1
+addi a1, t0, 0
+addi a2, zero, 3
+addi a7, zero, 64
+ecall
+addi a0, zero, 0
+jal zero, exit
+fail: addi a0, zero, 99
+exit: addi a7, zero, 93
+ecall
+
+.data 0x20000
+.byte 79, 75, 10, 0
+
+.expect stdout "OK\n"
+.expect exit 0

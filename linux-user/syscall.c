@@ -6972,6 +6972,12 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
     CPUArchState *new_env;
     sigset_t sigmask;
 
+#ifdef TARGET_VALIDATE_CLONE_FLAGS
+    if (!target_validate_clone_flags(flags)) {
+        return -TARGET_EINVAL;
+    }
+#endif
+
     flags &= ~CLONE_IGNORED_FLAGS;
 
     /* Emulate vfork() with fork() */
