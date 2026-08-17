@@ -49,6 +49,9 @@ config XIVE
 config ALLWINNER_A10_PIC
     bool
 
+config AM335X_INTC
+    bool
+
 config S390_FLIC
     bool
 
