@@ -27,6 +27,10 @@ config ALLWINNER_A10_PIT
     bool
     select PTIMER
 
+config AM335X_TIMER
+    bool
+    select PTIMER
+
 config PXA2XX_TIMER
     bool
 
