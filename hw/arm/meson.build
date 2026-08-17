@@ -1,4 +1,5 @@
 arm_common_ss = ss.source_set()
+arm_common_ss.add(when: 'CONFIG_AM3352_EVM', if_true: files('am3352.c', 'am3352-evm.c'))
 arm_common_ss.add(when: 'CONFIG_ARM_VIRT', if_true: files('virt.c'))
 arm_common_ss.add(when: 'CONFIG_ACPI', if_true: files('virt-acpi-build.c'))
 arm_common_ss.add(when: 'CONFIG_DIGIC', if_true: files('digic_boards.c'))

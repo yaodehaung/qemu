@@ -38,6 +38,15 @@ config ARM_VIRT
     select ACPI_HMAT
     select WDT_SBSA
 
+config AM3352_EVM
+    bool
+    default y
+    depends on TCG && ARM
+    select AM335X_INTC
+    select AM335X_TIMER
+    select SERIAL_MM
+    select UNIMP
+
 config CUBIEBOARD
     bool
     default y
