@@ -1,0 +1,201 @@
+/dts-v1/;
+
+/*
+ * Minimal device tree for the QEMU "tmdssk3358" machine.
+ *
+ * This intentionally does NOT describe the real TMDSSK3358 board fully:
+ * it only lists the handful of devices hw/arm/am3358.c actually models
+ * (CPU, RAM, INTC, one DMTimer, one UART). See
+ * docs/tmdssk3358-support-spec.md for what is and is not implemented.
+ *
+ * The UART node uses "ns16550a", not "ti,am3358-uart" / "ti,omap3-uart":
+ * that keeps the guest on the generic 8250 driver, which never touches
+ * the OMAP-specific UART_OMAP_MDR1 register that the QEMU model (a plain
+ * hw/char/serial.c 16550) doesn't implement.
+ */
+
+/ {
+	compatible = "qemu,tmdssk3358", "ti,am33xx";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+		stdout-path = &uart0;
+		bootargs = "console=ttyS0,115200n8 earlycon=uart8250,mmio32,0x44e09000,115200n8";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a8";
+			reg = <0>;
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>; /* 256 MiB, matches default_ram_size */
+	};
+
+	/*
+	 * Stand-in for the real am33xx clock tree (am33xx-clocks.dtsi),
+	 * which QEMU does not model. hw/timer/am335x_timer.c's functional
+	 * clock is fixed at 24 MHz regardless of what Linux thinks the
+	 * rate is, so a plain fixed-clock is enough to satisfy the
+	 * ti,am335x-timer driver's mandatory clock lookup.
+	 */
+	timer2_fck: timer2_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	/*
+	 * arch/arm/mach-omap2/clk-33xx.c am33xx_dt_clk_init() runs
+	 * unconditionally for any board compatible with "ti,am33xx" (see
+	 * the root node above): it's arch-level C code, not driven by
+	 * which devices this dts actually describes. It looks up
+	 * "sys_clkin_ck", "timer3_fck", "timer6_fck", "wdt1_fck" and
+	 * "clkdiv32k_ick" by name via clk_get_sys() and feeds the results
+	 * straight into clk_set_parent() with no clk_get() error check. On
+	 * a real am33xx.dtsi these always resolve; on this reduced dts
+	 * they don't, so clk_get_sys() returns an ERR_PTR and
+	 * clk_set_parent() dereferences it, oopsing during start_kernel()
+	 * before any console is up. None of these five clocks back a
+	 * modelled device (there is only one DMTimer, and no WDT), so
+	 * their rate/parent is irrelevant; they only need to *resolve* by
+	 * name. ti_clk_add_aliases() (called just before the lookups) auto
+	 * aliases every "fixed-clock" node by its own node name, so five
+	 * bare stand-ins the same shape as timer2_fck above are enough.
+	 */
+	sys_clkin_ck: sys_clkin_ck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	timer3_fck: timer3_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	timer6_fck: timer6_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+	};
+
+	wdt1_fck: wdt1_fck {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
+
+	clkdiv32k_ick: clkdiv32k_ick {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		interrupt-parent = <&intc>;
+
+		/*
+		 * omap_control_init()/omap_prcm_init() (arch/arm/mach-omap2)
+		 * call omap2_clk_provider_init(), which bails with -EINVAL if
+		 * its node has no "clocks" child, and that failure return is
+		 * silently ignored by omap_init_time_of(), which just skips
+		 * straight to of_clk_init(NULL)/timer_probe() regardless. If
+		 * of_clk_init() never runs, no CLK_OF_DECLARE clock (including
+		 * timer2_fck below) ever gets registered, and every clk_get()
+		 * on this board permanently returns -EPROBE_DEFER. An empty
+		 * "clocks" child is enough to satisfy the presence check; the
+		 * actual clocks we provide (just timer2_fck) don't need to
+		 * live inside it, since of_clk_init() walks the whole tree.
+		 */
+		scm: scm@44e10000 {
+			compatible = "ti,am3-scm", "simple-bus";
+			reg = <0x44e10000 0x2000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		prcm: prcm@44e00000 {
+			compatible = "ti,am3-prcm";
+			reg = <0x44e00000 0x1000>;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
+		intc: interrupt-controller@48200000 {
+			compatible = "ti,am33xx-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x48200000 0x1000>;
+		};
+
+		/*
+		 * The ti,am335x-timer driver (dmtimer_systimer_init(), see
+		 * drivers/clocksource/timer-ti-dm-systimer.c) requires its
+		 * parent to be a "ti,sysc" node exposing an "fck" clock; it
+		 * will not accept a clock directly on the timer node.
+		 * This mirrors the real am33xx-l4.dtsi timer2_target wrapper.
+		 */
+		timer2_target: target-module@48040000 {
+			compatible = "ti,sysc-omap4-timer", "ti,sysc";
+			reg = <0x48040000 0x4>, <0x48040010 0x4>, <0x48040014 0x4>;
+			reg-names = "rev", "sysc", "syss";
+			ti,sysc-mask = <1>;             /* SYSC_OMAP4_SOFTRESET */
+			ti,sysc-sidle = <0>, <1>, <2>, <3>; /* FORCE, NO, SMART, SMART_WKUP */
+			clocks = <&timer2_fck>, <&timer2_fck>;
+			clock-names = "fck", "ick";
+			/*
+			 * Marks this as the preferred dmtimer_systimer_init()
+			 * clockevent (drivers/clocksource/timer-ti-dm-systimer.c
+			 * dmtimer_is_preferred()), mirroring the real am33xx.dtsi
+			 * "&timer2_target" override.
+			 */
+			ti,no-reset-on-init;
+			ti,no-idle;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x48040000 0x1000>;
+
+			timer2: timer@0 {
+				compatible = "ti,am335x-timer";
+				reg = <0x0 0x400>;
+				interrupts = <68>;
+				clocks = <&timer2_fck>;
+				clock-names = "fck";
+				assigned-clocks = <&timer2_fck>;
+				assigned-clock-parents = <&timer2_fck>;
+			};
+		};
+
+		uart0: serial@44e09000 {
+			compatible = "ns16550a";
+			reg = <0x44e09000 0x1000>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			clock-frequency = <48000000>;
+			interrupts = <72>;
+		};
+	};
+};
