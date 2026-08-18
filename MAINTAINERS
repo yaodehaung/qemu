@@ -755,6 +755,18 @@ F: hw/arm/orangepi.c
 F: docs/system/arm/orangepi.rst
 F: tests/functional/arm/test_orangepi.py
 
+AM3352
+M: Nick Huang <sef1548@gmail.com>
+L: qemu-arm@nongnu.org
+S: Supported
+F: hw/arm/am3352.c
+F: hw/arm/am3352-evm.c
+F: hw/intc/am335x_intc.c
+F: hw/timer/am335x_timer.c
+F: include/hw/arm/am3352.h
+F: include/hw/intc/am335x_intc.h
+F: include/hw/timer/am335x_timer.h
+
 ARM PrimeCell and CMSDK devices
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
